@@ -1,12 +1,10 @@
-"use client"
-
-import { Input } from "@/components/ui/input"
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, Calendar, FileText, TrendingUp, UserPlus, ClipboardCheck } from "lucide-react"
 import Link from "next/link"
+import { CopyButton } from "@/components/copy-button"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -149,20 +147,7 @@ export default async function DashboardPage() {
             </div>
             <div className="pt-4 border-t">
               <p className="text-sm font-medium text-muted-foreground mb-2">Student/Parent Portal Link</p>
-              <div className="flex gap-2">
-                <Input
-                  readOnly
-                  value={`${typeof window !== "undefined" ? window.location.origin : ""}/view/${classroom.username}`}
-                  className="font-mono text-sm"
-                />
-                <Button
-                  onClick={() => {
-                    navigator.clipboard.writeText(`${window.location.origin}/view/${classroom.username}`)
-                  }}
-                >
-                  Copy
-                </Button>
-              </div>
+              <CopyButton username={classroom.username} />
             </div>
           </CardContent>
         </Card>
