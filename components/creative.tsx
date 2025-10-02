@@ -54,6 +54,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import Link from "next/link"
 
 const apps = [
   {
@@ -680,6 +681,11 @@ export function DesignaliCreative() {
           <div className="flex flex-1 items-center justify-between">
             <h1 className="text-xl font-semibold">Circle Classroom</h1>
             <div className="flex items-center gap-3">
+              <Link href="/auth/login">
+                <Button variant="default" className="rounded-2xl">
+                  Get Started
+                </Button>
+              </Link>
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -785,16 +791,20 @@ export function DesignaliCreative() {
                             comprehensive reports. Everything you need for efficient classroom management.
                           </p>
                           <div className="flex flex-wrap gap-3">
-                            <Button className="rounded-2xl bg-white text-purple-700 hover:bg-white/90">
-                              <Plus className="mr-2 h-4 w-4" />
-                              Add Students
-                            </Button>
-                            <Button
-                              variant="outline"
-                              className="rounded-2xl bg-transparent border-white text-white hover:bg-white/10"
-                            >
-                              Watch Demo
-                            </Button>
+                            <Link href="/auth/login">
+                              <Button className="rounded-2xl bg-white text-purple-700 hover:bg-white/90">
+                                <Plus className="mr-2 h-4 w-4" />
+                                Get Started
+                              </Button>
+                            </Link>
+                            <Link href="/auth/login">
+                              <Button
+                                variant="outline"
+                                className="rounded-2xl bg-transparent border-white text-white hover:bg-white/10"
+                              >
+                                Sign In
+                              </Button>
+                            </Link>
                           </div>
                         </div>
                         <div className="hidden lg:block">
