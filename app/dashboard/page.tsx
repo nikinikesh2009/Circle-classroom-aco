@@ -1,7 +1,6 @@
 "use client"
 
 import { Input } from "@/components/ui/input"
-
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { Button } from "@/components/ui/button"
