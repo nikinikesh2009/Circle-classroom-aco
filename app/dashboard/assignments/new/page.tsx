@@ -64,12 +64,18 @@ export default function NewAssignmentPage() {
       } = await supabase.auth.getUser()
       if (!user) throw new Error("Not authenticated")
 
-      const { data: profile } = await supabase.from("profiles").select("classroom_id").eq("id", user.id).single()
+      const { data: classroom } = await supabase.from("classrooms").select("id").eq("teacher_id", user.id).single()
+
+      if (!classroom) throw new Error("No classroom found. Please complete setup first.")
 
       const { error } = await supabase.from("assignments").insert({
-        ...formData,
-        classroom_id: profile?.classroom_id,
-        grade_scale: gradeScale,
+        title: formData.title,
+        subject: formData.subject,
+        total_marks: formData.total_marks,
+        pass_marks: formData.pass_marks,
+        exam_date: formData.date,
+        classroom_id: classroom.id,
+        grading_scale: gradeScale,
       })
 
       if (error) throw error

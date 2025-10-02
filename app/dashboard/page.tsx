@@ -19,6 +19,10 @@ export default async function DashboardPage() {
 
   const { data: classroom } = await supabase.from("classrooms").select("*").eq("teacher_id", user.id).single()
 
+  if (!classroom) {
+    redirect("/setup")
+  }
+
   const { data: students, count: totalStudents } = await supabase
     .from("students")
     .select("*", { count: "exact" })

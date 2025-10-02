@@ -49,15 +49,26 @@ export default function NewStudentPage() {
       } = await supabase.auth.getUser()
       if (!user) throw new Error("Not authenticated")
 
-      const { data: profile } = await supabase.from("profiles").select("classroom_id").eq("id", user.id).single()
+      const { data: classroom } = await supabase.from("classrooms").select("id").eq("teacher_id", user.id).single()
 
-      if (!profile?.classroom_id) throw new Error("No classroom found")
+      if (!classroom) throw new Error("No classroom found. Please complete setup first.")
 
       const loginId = generateLoginId(formData.first_name, formData.last_name)
 
       const { error } = await supabase.from("students").insert({
-        ...formData,
-        classroom_id: profile.classroom_id,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        date_of_birth: formData.date_of_birth,
+        gender: formData.gender,
+        parent_guardian_name: formData.parent_name,
+        parent_guardian_email: formData.parent_email,
+        parent_guardian_phone: formData.parent_phone,
+        emergency_contact_name: formData.emergency_contact,
+        emergency_contact_phone: formData.emergency_phone,
+        medical_conditions: formData.medical_notes,
+        address: formData.address,
+        classroom_id: classroom.id,
+        teacher_id: user.id,
         login_id: loginId,
       })
 
