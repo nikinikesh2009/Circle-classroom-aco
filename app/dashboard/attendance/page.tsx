@@ -1,7 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { createClient } from "@/lib/supabase/client"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CalendarIcon, Check, X, Save } from "lucide-react"
@@ -12,121 +11,21 @@ import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
-interface Student {
-  id: string
-  first_name: string
-  last_name: string
-  photo_url: string | null
-}
+// Mock student data
+const mockStudents = [
+  { id: "1", first_name: "Emma", last_name: "Johnson", photo_url: null },
+  { id: "2", first_name: "Liam", last_name: "Smith", photo_url: null },
+  { id: "3", first_name: "Olivia", last_name: "Williams", photo_url: null },
+  { id: "4", first_name: "Noah", last_name: "Brown", photo_url: null },
+  { id: "5", first_name: "Ava", last_name: "Davis", photo_url: null },
+  { id: "6", first_name: "Ethan", last_name: "Miller", photo_url: null },
+]
 
 export default function AttendancePage() {
   const { toast } = useToast()
-  const [students, setStudents] = useState<Student[]>([])
   const [attendance, setAttendance] = useState<Record<string, "present" | "absent">>({})
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    loadStudents()
-    loadAttendance()
-  }, [selectedDate])
-
-  const loadStudents = async () => {
-    try {
-      setError(null)
-      const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
-        setError("Please log in to continue")
-        return
-      }
-
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("classroom_id")
-        .eq("id", user.id)
-        .single()
-
-      if (profileError) {
-        console.error("[v0] Profile error:", profileError)
-        throw new Error("Unable to load your profile")
-      }
-
-      if (!profile?.classroom_id) {
-        throw new Error("Classroom not found. Please complete setup first.")
-      }
-
-      const { data, error: studentsError } = await supabase
-        .from("students")
-        .select("id, first_name, last_name, photo_url")
-        .eq("classroom_id", profile.classroom_id)
-        .order("first_name")
-
-      if (studentsError) {
-        console.error("[v0] Students error:", studentsError)
-        throw new Error("Unable to load students")
-      }
-
-      setStudents(data || [])
-    } catch (error: any) {
-      console.error("[v0] Load students error:", error)
-      setError(error.message || "Failed to load students")
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const loadAttendance = async () => {
-    try {
-      const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) return
-
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("classroom_id")
-        .eq("id", user.id)
-        .single()
-
-      if (profileError || !profile?.classroom_id) {
-        console.error("[v0] Profile error in loadAttendance:", profileError)
-        return
-      }
-
-      const dateStr = format(selectedDate, "yyyy-MM-dd")
-      const { data, error: attendanceError } = await supabase
-        .from("attendance")
-        .select("student_id, status")
-        .eq("classroom_id", profile.classroom_id)
-        .eq("date", dateStr)
-
-      if (attendanceError) {
-        console.error("[v0] Attendance error:", attendanceError)
-        return
-      }
-
-      const attendanceMap: Record<string, "present" | "absent"> = {}
-      data?.forEach((record) => {
-        attendanceMap[record.student_id] = record.status
-      })
-      setAttendance(attendanceMap)
-    } catch (error: any) {
-      console.error("[v0] Error loading attendance:", error)
-    }
-  }
 
   const toggleAttendance = (studentId: string, status: "present" | "absent") => {
     setAttendance((prev) => ({
@@ -137,103 +36,19 @@ export default function AttendancePage() {
 
   const saveAttendance = async () => {
     setSaving(true)
-    try {
-      const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+    // Simulate save delay
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    setSaving(false)
 
-      if (!user) {
-        throw new Error("Please log in to continue")
-      }
-
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("classroom_id")
-        .eq("id", user.id)
-        .single()
-
-      if (profileError) {
-        console.error("[v0] Profile error:", profileError)
-        throw new Error("Unable to load your profile")
-      }
-
-      if (!profile?.classroom_id) {
-        throw new Error("Classroom not found. Please complete setup first.")
-      }
-
-      const dateStr = format(selectedDate, "yyyy-MM-dd")
-
-      const { error: deleteError } = await supabase
-        .from("attendance")
-        .delete()
-        .eq("classroom_id", profile.classroom_id)
-        .eq("date", dateStr)
-
-      if (deleteError) {
-        console.error("[v0] Delete error:", deleteError)
-      }
-
-      const records = Object.entries(attendance).map(([student_id, status]) => ({
-        classroom_id: profile.classroom_id,
-        student_id,
-        date: dateStr,
-        status,
-      }))
-
-      if (records.length > 0) {
-        const { error: insertError } = await supabase.from("attendance").insert(records)
-
-        if (insertError) {
-          console.error("[v0] Insert error:", insertError)
-          throw new Error("Failed to save attendance")
-        }
-      }
-
-      toast({
-        title: "Success",
-        description: "Attendance saved successfully",
-      })
-    } catch (error: any) {
-      console.error("[v0] Save attendance error:", error)
-      toast({
-        title: "Error",
-        description: error.message || "Failed to save attendance",
-        variant: "destructive",
-      })
-    } finally {
-      setSaving(false)
-    }
+    toast({
+      title: "Success",
+      description: "Attendance saved successfully (demo mode)",
+    })
   }
 
   const presentCount = Object.values(attendance).filter((s) => s === "present").length
   const absentCount = Object.values(attendance).filter((s) => s === "absent").length
-  const attendanceRate = students.length > 0 ? Math.round((presentCount / students.length) * 100) : 0
-
-  if (error) {
-    return (
-      <div className="flex h-[400px] items-center justify-center">
-        <div className="text-center">
-          <h2 className="mb-2 text-xl font-semibold text-destructive">Error</h2>
-          <p className="text-muted-foreground">{error}</p>
-          <Button onClick={() => window.location.reload()} className="mt-4">
-            Retry
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
-  if (loading) {
-    return (
-      <div className="flex h-[400px] items-center justify-center">
-        <div className="text-center">
-          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
-          <p className="text-muted-foreground">Loading students...</p>
-        </div>
-      </div>
-    )
-  }
+  const attendanceRate = mockStudents.length > 0 ? Math.round((presentCount / mockStudents.length) * 100) : 0
 
   return (
     <div className="space-y-6">
@@ -268,7 +83,7 @@ export default function AttendancePage() {
         <Card>
           <CardHeader className="pb-3">
             <CardDescription>Total Students</CardDescription>
-            <CardTitle className="text-3xl">{students.length}</CardTitle>
+            <CardTitle className="text-3xl">{mockStudents.length}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
@@ -288,11 +103,11 @@ export default function AttendancePage() {
       <Card>
         <CardHeader>
           <CardTitle>Student List</CardTitle>
-          <CardDescription>Click to mark attendance for each student</CardDescription>
+          <CardDescription>Click to mark attendance for each student (demo mode)</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {students.map((student) => (
+            {mockStudents.map((student) => (
               <div
                 key={student.id}
                 className="flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-muted/50"
@@ -349,8 +164,8 @@ export default function AttendancePage() {
       </Card>
 
       <div className="sticky bottom-0 flex justify-end gap-4 rounded-lg border bg-background p-4 shadow-lg">
-        <Button variant="outline" size="lg" onClick={loadAttendance}>
-          Cancel
+        <Button variant="outline" size="lg" onClick={() => setAttendance({})}>
+          Clear All
         </Button>
         <Button size="lg" onClick={saveAttendance} disabled={saving} className="gap-2 min-w-[140px]">
           <Save className="h-5 w-5" />
