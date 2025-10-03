@@ -6,9 +6,15 @@ import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, UserPlus, MoreVertical, Edit, Trash2 } from "lucide-react"
+import { Search, UserPlus, MoreVertical, Edit, Trash2, QrCode } from "lucide-react"
 import Link from "next/link"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
 
 interface Student {
   id: string
@@ -31,9 +37,6 @@ interface Student {
 
 export function StudentsRoster({ students, classroomId }: { students: Student[]; classroomId: string }) {
   const [searchTerm, setSearchTerm] = useState("")
-  const [attendance, setAttendance] = useState<Record<string, "present" | "absent" | null>>(
-    students.reduce((acc, student) => ({ ...acc, [student.id]: null }), {}),
-  )
 
   const filteredStudents = students.filter(
     (student) =>
@@ -43,117 +46,115 @@ export function StudentsRoster({ students, classroomId }: { students: Student[];
       student.login_id?.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
-  const toggleAttendance = (studentId: string, status: "present" | "absent") => {
-    setAttendance((prev) => ({
-      ...prev,
-      [studentId]: prev[studentId] === status ? null : status,
-    }))
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-3xl font-bold">Students</h2>
-          <p className="text-muted-foreground">Manage your student roster</p>
+          <h2 className="text-3xl font-bold tracking-tight">Students</h2>
+          <p className="text-muted-foreground">Manage your student roster • {students.length} total students</p>
         </div>
+        <Link href="/dashboard/students/new">
+          <Button size="lg" className="gap-2">
+            <UserPlus className="h-5 w-5" />
+            Add Student
+          </Button>
+        </Link>
       </div>
 
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           placeholder="Search by name or student ID..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
+          className="pl-10 h-12 text-base"
         />
       </div>
 
       {filteredStudents.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 border rounded-lg bg-muted/20">
-          <UserPlus className="w-12 h-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No students found</h3>
-          <p className="text-sm text-muted-foreground mb-4">
+        <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed py-16">
+          <UserPlus className="mb-4 h-12 w-12 text-muted-foreground" />
+          <h3 className="mb-2 text-lg font-semibold">No students found</h3>
+          <p className="mb-4 text-sm text-muted-foreground">
             {searchTerm ? "Try a different search term" : "Get started by adding your first student"}
           </p>
+          {!searchTerm && (
+            <Link href="/dashboard/students/new">
+              <Button>
+                <UserPlus className="mr-2 h-4 w-4" />
+                Add Student
+              </Button>
+            </Link>
+          )}
         </div>
       ) : (
-        <div className="border rounded-lg overflow-hidden">
+        <div className="overflow-hidden rounded-lg border">
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="bg-muted/50">
                 <TableHead className="w-[80px]">Photo</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Student ID</TableHead>
                 <TableHead>Grade</TableHead>
-                <TableHead>Attendance</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredStudents.map((student) => (
-                <TableRow key={student.id}>
+                <TableRow key={student.id} className="hover:bg-muted/50 transition-colors">
                   <TableCell>
-                    <Avatar>
+                    <Avatar className="h-12 w-12">
                       <AvatarImage src={student.photo_url || undefined} />
-                      <AvatarFallback>
+                      <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                         {student.first_name[0]}
                         {student.last_name[0]}
                       </AvatarFallback>
                     </Avatar>
                   </TableCell>
-                  <TableCell className="font-medium">
-                    {student.first_name} {student.last_name}
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span className="font-semibold">
+                        {student.first_name} {student.last_name}
+                      </span>
+                      {student.parent_guardian_name && (
+                        <span className="text-xs text-muted-foreground">Parent: {student.parent_guardian_name}</span>
+                      )}
+                    </div>
                   </TableCell>
-                  <TableCell className="font-mono text-sm">{student.student_id}</TableCell>
+                  <TableCell>
+                    <span className="font-mono text-sm font-medium">{student.student_id}</span>
+                  </TableCell>
                   <TableCell>
                     {student.grade_level ? (
-                      <Badge variant="secondary">{student.grade_level}</Badge>
+                      <Badge variant="secondary" className="font-medium">
+                        {student.grade_level}
+                      </Badge>
                     ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
+                      <span className="text-sm text-muted-foreground">-</span>
                     )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant={attendance[student.id] === "present" ? "default" : "outline"}
-                        onClick={() => toggleAttendance(student.id, "present")}
-                        className={
-                          attendance[student.id] === "present" ? "bg-green-600 hover:bg-green-700" : "hover:bg-green-50"
-                        }
-                      >
-                        Present
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={attendance[student.id] === "absent" ? "default" : "outline"}
-                        onClick={() => toggleAttendance(student.id, "absent")}
-                        className={
-                          attendance[student.id] === "absent" ? "bg-red-600 hover:bg-red-700" : "hover:bg-red-50"
-                        }
-                      >
-                        Absent
-                      </Button>
-                    </div>
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="w-4 h-4" />
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreVertical className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="end" className="w-48">
                         <DropdownMenuItem asChild>
                           <Link href={`/dashboard/students/${student.id}`} className="cursor-pointer">
-                            <Edit className="w-4 h-4 mr-2" />
-                            Edit
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit Details
                           </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete
+                        <DropdownMenuItem>
+                          <QrCode className="mr-2 h-4 w-4" />
+                          Generate QR Code
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="text-destructive focus:text-destructive">
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete Student
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -165,9 +166,9 @@ export function StudentsRoster({ students, classroomId }: { students: Student[];
         </div>
       )}
 
-      <Link href="/dashboard/students/new" className="fixed bottom-8 right-8 z-50">
-        <Button size="lg" className="rounded-full shadow-lg h-14 w-14 p-0">
-          <UserPlus className="w-6 h-6" />
+      <Link href="/dashboard/students/new" className="fixed bottom-8 right-8 z-50 md:hidden">
+        <Button size="lg" className="h-14 w-14 rounded-full p-0 shadow-lg">
+          <UserPlus className="h-6 w-6" />
         </Button>
       </Link>
     </div>

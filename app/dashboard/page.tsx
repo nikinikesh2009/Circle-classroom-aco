@@ -1,7 +1,10 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, Calendar, FileText, TrendingUp } from "lucide-react"
+import { Users, Calendar, FileText, TrendingUp, ClipboardCheck } from "lucide-react"
+import { StatCard } from "@/components/stat-card"
+import { Button } from "@/components/ui/button"
+import Link from "next/link"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -43,76 +46,84 @@ export default async function DashboardPage() {
   const attendanceRate = totalStudents && presentToday ? Math.round((presentToday / totalStudents) * 100) : 0
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Welcome back!</h2>
-        <p className="text-muted-foreground">Here's what's happening with your classroom today.</p>
+    <div className="space-y-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Welcome back!</h2>
+          <p className="text-muted-foreground">Here's what's happening with your classroom today.</p>
+        </div>
+        <Link href="/dashboard/attendance">
+          <Button size="lg" className="gap-2">
+            <ClipboardCheck className="h-5 w-5" />
+            Take Attendance
+          </Button>
+        </Link>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Students</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalStudents || 0}</div>
-            <p className="text-xs text-muted-foreground">Enrolled in your class</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Present Today</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{presentToday || 0}</div>
-            <p className="text-xs text-muted-foreground">{attendanceRate}% attendance rate</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Assignments</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalAssignments || 0}</div>
-            <p className="text-xs text-muted-foreground">Total created</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Class Average</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">--</div>
-            <p className="text-xs text-muted-foreground">Across all assignments</p>
-          </CardContent>
-        </Card>
+        <StatCard
+          title="Total Students"
+          value={String(totalStudents || 0)}
+          change="+0 from last month"
+          icon={Users}
+          index={0}
+        />
+        <StatCard
+          title="Present Today"
+          value={String(presentToday || 0)}
+          change={`${attendanceRate}% attendance rate`}
+          icon={Calendar}
+          index={1}
+        />
+        <StatCard
+          title="Assignments"
+          value={String(totalAssignments || 0)}
+          change="+0 from last month"
+          icon={FileText}
+          index={2}
+        />
+        <StatCard title="Class Average" value="--" change="Across all assignments" icon={TrendingUp} index={3} />
       </div>
+
+      <Card className="overflow-hidden">
+        <CardHeader className="bg-primary/5">
+          <CardTitle>Classroom Information</CardTitle>
+          <CardDescription>Your classroom details and settings</CardDescription>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">Classroom Name</p>
+              <p className="text-xl font-semibold">{classroom.name}</p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">Grade Level</p>
+              <p className="text-xl font-semibold">{classroom.grade_level}</p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">Academic Year</p>
+              <p className="text-xl font-semibold">{classroom.academic_year}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Classroom Information</CardTitle>
-          <CardDescription>Your classroom details</CardDescription>
+          <CardTitle>Recent Activity</CardTitle>
+          <CardDescription>Latest updates from your classroom</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Classroom Name</p>
-              <p className="text-lg font-semibold">{classroom.name}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Grade Level</p>
-              <p className="text-lg font-semibold">{classroom.grade_level}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Academic Year</p>
-              <p className="text-lg font-semibold">{classroom.academic_year}</p>
+          <div className="space-y-4">
+            <div className="flex items-center gap-4 rounded-lg border p-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 text-green-600">
+                <Calendar className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium">Attendance taken for today</p>
+                <p className="text-sm text-muted-foreground">{presentToday || 0} students marked present</p>
+              </div>
+              <p className="text-sm text-muted-foreground">{new Date().toLocaleDateString()}</p>
             </div>
           </div>
         </CardContent>

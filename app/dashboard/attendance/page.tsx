@@ -4,18 +4,19 @@ import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Calendar, Check, X } from "lucide-react"
+import { CalendarIcon, Check, X, Save } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { format } from "date-fns"
+import { cn } from "@/lib/utils"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 interface Student {
   id: string
   first_name: string
   last_name: string
-}
-
-interface AttendanceRecord {
-  student_id: string
-  status: "present" | "absent"
+  photo_url: string | null
 }
 
 export default function AttendancePage() {
@@ -24,7 +25,7 @@ export default function AttendancePage() {
   const [attendance, setAttendance] = useState<Record<string, "present" | "absent">>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0])
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
 
   useEffect(() => {
     loadStudents()
@@ -51,7 +52,7 @@ export default function AttendancePage() {
 
       const { data, error } = await supabase
         .from("students")
-        .select("id, first_name, last_name")
+        .select("id, first_name, last_name, photo_url")
         .eq("classroom_id", profile.classroom_id)
         .order("first_name")
 
@@ -86,11 +87,12 @@ export default function AttendancePage() {
         return
       }
 
+      const dateStr = format(selectedDate, "yyyy-MM-dd")
       const { data, error } = await supabase
         .from("attendance")
         .select("student_id, status")
         .eq("classroom_id", profile.classroom_id)
-        .eq("date", selectedDate)
+        .eq("date", dateStr)
 
       if (error) throw error
 
@@ -130,12 +132,13 @@ export default function AttendancePage() {
         throw new Error("Classroom not found. Please complete setup first.")
       }
 
-      await supabase.from("attendance").delete().eq("classroom_id", profile.classroom_id).eq("date", selectedDate)
+      const dateStr = format(selectedDate, "yyyy-MM-dd")
+      await supabase.from("attendance").delete().eq("classroom_id", profile.classroom_id).eq("date", dateStr)
 
       const records = Object.entries(attendance).map(([student_id, status]) => ({
         classroom_id: profile.classroom_id,
         student_id,
-        date: selectedDate,
+        date: dateStr,
         status,
       }))
 
@@ -158,69 +161,143 @@ export default function AttendancePage() {
     }
   }
 
+  const presentCount = Object.values(attendance).filter((s) => s === "present").length
+  const absentCount = Object.values(attendance).filter((s) => s === "absent").length
+  const attendanceRate = students.length > 0 ? Math.round((presentCount / students.length) * 100) : 0
+
   if (loading) {
-    return <div className="container py-8">Loading...</div>
+    return (
+      <div className="flex h-[400px] items-center justify-center">
+        <div className="text-center">
+          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <p className="text-muted-foreground">Loading students...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="container max-w-4xl py-8">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Take Attendance</h2>
+          <p className="text-muted-foreground">Mark students as present or absent</p>
+        </div>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="lg"
+              className={cn("gap-2 font-normal", !selectedDate && "text-muted-foreground")}
+            >
+              <CalendarIcon className="h-5 w-5" />
+              {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="end">
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={(date) => date && setSelectedDate(date)}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardDescription>Total Students</CardDescription>
+            <CardTitle className="text-3xl">{students.length}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardDescription>Present Today</CardDescription>
+            <CardTitle className="text-3xl text-green-600">{presentCount}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardDescription>Attendance Rate</CardDescription>
+            <CardTitle className="text-3xl">{attendanceRate}%</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Take Attendance
-          </CardTitle>
-          <CardDescription>Mark students as present or absent for the selected date</CardDescription>
+          <CardTitle>Student List</CardTitle>
+          <CardDescription>Click to mark attendance for each student</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex items-center gap-4">
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="px-3 py-2 border rounded-md"
-            />
-            <div className="text-sm text-muted-foreground">{students.length} students</div>
-          </div>
-
-          <div className="space-y-2">
+        <CardContent>
+          <div className="space-y-3">
             {students.map((student) => (
               <div
                 key={student.id}
-                className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
+                className="flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-muted/50"
               >
-                <span className="font-medium">
-                  {student.first_name} {student.last_name}
-                </span>
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-12 w-12">
+                    <AvatarImage src={student.photo_url || undefined} />
+                    <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                      {student.first_name[0]}
+                      {student.last_name[0]}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-semibold">
+                      {student.first_name} {student.last_name}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {attendance[student.id] === "present" && "✓ Present"}
+                      {attendance[student.id] === "absent" && "✗ Absent"}
+                      {!attendance[student.id] && "Not marked"}
+                    </p>
+                  </div>
+                </div>
                 <div className="flex gap-2">
                   <Button
-                    size="sm"
+                    size="lg"
                     variant={attendance[student.id] === "present" ? "default" : "outline"}
                     onClick={() => toggleAttendance(student.id, "present")}
-                    className={attendance[student.id] === "present" ? "bg-green-600 hover:bg-green-700" : ""}
+                    className={cn(
+                      "gap-2 min-w-[120px]",
+                      attendance[student.id] === "present" && "bg-green-600 hover:bg-green-700",
+                    )}
                   >
-                    <Check className="h-4 w-4 mr-1" />
+                    <Check className="h-5 w-5" />
                     Present
                   </Button>
                   <Button
-                    size="sm"
+                    size="lg"
                     variant={attendance[student.id] === "absent" ? "default" : "outline"}
                     onClick={() => toggleAttendance(student.id, "absent")}
-                    className={attendance[student.id] === "absent" ? "bg-red-600 hover:bg-red-700" : ""}
+                    className={cn(
+                      "gap-2 min-w-[120px]",
+                      attendance[student.id] === "absent" && "bg-red-600 hover:bg-red-700",
+                    )}
                   >
-                    <X className="h-4 w-4 mr-1" />
+                    <X className="h-5 w-5" />
                     Absent
                   </Button>
                 </div>
               </div>
             ))}
           </div>
-
-          <Button onClick={saveAttendance} disabled={saving} className="w-full">
-            {saving ? "Saving..." : "Save Attendance"}
-          </Button>
         </CardContent>
       </Card>
+
+      <div className="sticky bottom-0 flex justify-end gap-4 rounded-lg border bg-background p-4 shadow-lg">
+        <Button variant="outline" size="lg" onClick={loadAttendance}>
+          Cancel
+        </Button>
+        <Button size="lg" onClick={saveAttendance} disabled={saving} className="gap-2 min-w-[140px]">
+          <Save className="h-5 w-5" />
+          {saving ? "Saving..." : "Save Attendance"}
+        </Button>
+      </div>
     </div>
   )
 }

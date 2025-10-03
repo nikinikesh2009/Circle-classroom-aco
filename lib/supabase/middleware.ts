@@ -24,7 +24,7 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({
             request,
           })
@@ -37,39 +37,24 @@ export async function updateSession(request: NextRequest) {
   try {
     const {
       data: { user },
-      error: userError,
     } = await supabase.auth.getUser()
 
-    console.log("[v0] Middleware - User check:", {
-      hasUser: !!user,
-      isProtectedRoute,
-      isAuthRoute,
-      pathname: request.nextUrl.pathname,
-      error: userError?.message,
-    })
-
     if (!user && isProtectedRoute) {
-      console.log("[v0] Redirecting to login - no user on protected route")
       const url = request.nextUrl.clone()
       url.pathname = "/auth/login"
       return NextResponse.redirect(url)
     }
 
     if (user && isAuthRoute && !request.nextUrl.pathname.includes("/callback")) {
-      console.log("[v0] User on auth route, checking classroom")
-      const classroomPromise = supabase.from("classrooms").select("id").eq("teacher_id", user.id).maybeSingle()
-
-      const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve({ data: null }), 3000))
-
-      const { data: classroom } = (await Promise.race([classroomPromise, timeoutPromise])) as any
+      const { data: classroom } = await supabase.from("classrooms").select("id").eq("teacher_id", user.id).maybeSingle()
 
       const url = request.nextUrl.clone()
       url.pathname = classroom ? "/dashboard" : "/setup"
-      console.log("[v0] Redirecting to:", url.pathname)
       return NextResponse.redirect(url)
     }
   } catch (error) {
     console.error("[v0] Middleware auth error:", error)
+    // For protected routes, redirect to login on error
     if (isProtectedRoute) {
       const url = request.nextUrl.clone()
       url.pathname = "/auth/login"

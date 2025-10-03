@@ -21,15 +21,10 @@ export async function createCustomerPortalSession() {
       throw new Error("No Stripe customer found. Please subscribe first.")
     }
 
-    const returnUrl =
-      process.env.NODE_ENV === "production"
-        ? `${process.env.NEXT_PUBLIC_SUPABASE_URL || "https://yourdomain.com"}/dashboard/settings`
-        : `${process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || "http://localhost:3000"}/dashboard/settings`
-
     // Create a Customer Portal session
     const session = await stripe.billingPortal.sessions.create({
       customer: profile.stripe_customer_id,
-      return_url: returnUrl,
+      return_url: `${process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || "http://localhost:3000"}/dashboard/settings`,
     })
 
     return { url: session.url }
