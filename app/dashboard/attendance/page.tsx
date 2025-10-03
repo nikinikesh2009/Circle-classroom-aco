@@ -1,6 +1,8 @@
-"use client"
+export const dynamic = "force-dynamic"
+;("use client")
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CalendarIcon, Check, X, Save } from "lucide-react"
@@ -11,21 +13,113 @@ import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
-// Mock student data
-const mockStudents = [
-  { id: "1", first_name: "Emma", last_name: "Johnson", photo_url: null },
-  { id: "2", first_name: "Liam", last_name: "Smith", photo_url: null },
-  { id: "3", first_name: "Olivia", last_name: "Williams", photo_url: null },
-  { id: "4", first_name: "Noah", last_name: "Brown", photo_url: null },
-  { id: "5", first_name: "Ava", last_name: "Davis", photo_url: null },
-  { id: "6", first_name: "Ethan", last_name: "Miller", photo_url: null },
-]
+interface Student {
+  id: string
+  first_name: string
+  last_name: string
+  photo_url: string | null
+}
 
 export default function AttendancePage() {
   const { toast } = useToast()
+  const [students, setStudents] = useState<Student[]>([])
   const [attendance, setAttendance] = useState<Record<string, "present" | "absent">>({})
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+
+  useEffect(() => {
+    loadStudents()
+    loadAttendance()
+  }, [selectedDate])
+
+  const loadStudents = async () => {
+    try {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to continue",
+          variant: "destructive",
+        })
+        return
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("classroom_id")
+        .eq("id", user.id)
+        .single()
+
+      if (profileError || !profile?.classroom_id) {
+        toast({
+          title: "Setup Required",
+          description: "Please complete classroom setup first",
+          variant: "destructive",
+        })
+        setLoading(false)
+        return
+      }
+
+      const { data, error } = await supabase
+        .from("students")
+        .select("id, first_name, last_name, photo_url")
+        .eq("classroom_id", profile.classroom_id)
+        .order("first_name")
+
+      if (error) throw error
+      setStudents(data || [])
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadAttendance = async () => {
+    try {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("classroom_id")
+        .eq("id", user.id)
+        .single()
+
+      if (profileError || !profile?.classroom_id) {
+        return
+      }
+
+      const dateStr = format(selectedDate, "yyyy-MM-dd")
+      const { data, error } = await supabase
+        .from("attendance")
+        .select("student_id, status")
+        .eq("classroom_id", profile.classroom_id)
+        .eq("date", dateStr)
+
+      if (error) throw error
+
+      const attendanceMap: Record<string, "present" | "absent"> = {}
+      data?.forEach((record) => {
+        attendanceMap[record.student_id] = record.status
+      })
+      setAttendance(attendanceMap)
+    } catch (error: any) {
+      console.error("[v0] Error loading attendance:", error)
+    }
+  }
 
   const toggleAttendance = (studentId: string, status: "present" | "absent") => {
     setAttendance((prev) => ({
@@ -36,19 +130,81 @@ export default function AttendancePage() {
 
   const saveAttendance = async () => {
     setSaving(true)
-    // Simulate save delay
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    setSaving(false)
+    try {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
 
-    toast({
-      title: "Success",
-      description: "Attendance saved successfully (demo mode)",
-    })
+      if (!user) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to continue",
+          variant: "destructive",
+        })
+        setSaving(false)
+        return
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("classroom_id")
+        .eq("id", user.id)
+        .single()
+
+      if (profileError || !profile?.classroom_id) {
+        toast({
+          title: "Setup Required",
+          description: "Please complete classroom setup first",
+          variant: "destructive",
+        })
+        setSaving(false)
+        return
+      }
+
+      const dateStr = format(selectedDate, "yyyy-MM-dd")
+      await supabase.from("attendance").delete().eq("classroom_id", profile.classroom_id).eq("date", dateStr)
+
+      const records = Object.entries(attendance).map(([student_id, status]) => ({
+        classroom_id: profile.classroom_id,
+        student_id,
+        date: dateStr,
+        status,
+      }))
+
+      const { error } = await supabase.from("attendance").insert(records)
+
+      if (error) throw error
+
+      toast({
+        title: "Success",
+        description: "Attendance saved successfully",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      })
+    } finally {
+      setSaving(false)
+    }
   }
 
   const presentCount = Object.values(attendance).filter((s) => s === "present").length
   const absentCount = Object.values(attendance).filter((s) => s === "absent").length
-  const attendanceRate = mockStudents.length > 0 ? Math.round((presentCount / mockStudents.length) * 100) : 0
+  const attendanceRate = students.length > 0 ? Math.round((presentCount / students.length) * 100) : 0
+
+  if (loading) {
+    return (
+      <div className="flex h-[400px] items-center justify-center">
+        <div className="text-center">
+          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <p className="text-muted-foreground">Loading students...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -83,7 +239,7 @@ export default function AttendancePage() {
         <Card>
           <CardHeader className="pb-3">
             <CardDescription>Total Students</CardDescription>
-            <CardTitle className="text-3xl">{mockStudents.length}</CardTitle>
+            <CardTitle className="text-3xl">{students.length}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
@@ -103,11 +259,11 @@ export default function AttendancePage() {
       <Card>
         <CardHeader>
           <CardTitle>Student List</CardTitle>
-          <CardDescription>Click to mark attendance for each student (demo mode)</CardDescription>
+          <CardDescription>Click to mark attendance for each student</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {mockStudents.map((student) => (
+            {students.map((student) => (
               <div
                 key={student.id}
                 className="flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-muted/50"
@@ -164,8 +320,8 @@ export default function AttendancePage() {
       </Card>
 
       <div className="sticky bottom-0 flex justify-end gap-4 rounded-lg border bg-background p-4 shadow-lg">
-        <Button variant="outline" size="lg" onClick={() => setAttendance({})}>
-          Clear All
+        <Button variant="outline" size="lg" onClick={loadAttendance}>
+          Cancel
         </Button>
         <Button size="lg" onClick={saveAttendance} disabled={saving} className="gap-2 min-w-[140px]">
           <Save className="h-5 w-5" />

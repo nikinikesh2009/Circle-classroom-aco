@@ -1,4 +1,5 @@
-"use client"
+export const dynamic = "force-dynamic"
+;("use client")
 
 import type React from "react"
 
@@ -43,7 +44,15 @@ export default function GradesPage() {
       const {
         data: { user },
       } = await supabase.auth.getUser()
-      if (!user) return
+
+      if (!user) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to continue",
+          variant: "destructive",
+        })
+        return
+      }
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
@@ -52,7 +61,12 @@ export default function GradesPage() {
         .single()
 
       if (profileError || !profile?.classroom_id) {
-        throw new Error("Classroom not found. Please complete setup first.")
+        toast({
+          title: "Setup Required",
+          description: "Please complete classroom setup first",
+          variant: "destructive",
+        })
+        return
       }
 
       const [assignmentsRes, studentsRes] = await Promise.all([
@@ -134,7 +148,16 @@ export default function GradesPage() {
       const {
         data: { user },
       } = await supabase.auth.getUser()
-      if (!user) return
+
+      if (!user) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to continue",
+          variant: "destructive",
+        })
+        setLoading(false)
+        return
+      }
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
@@ -143,7 +166,13 @@ export default function GradesPage() {
         .single()
 
       if (profileError || !profile?.classroom_id) {
-        throw new Error("Classroom not found. Please complete setup first.")
+        toast({
+          title: "Setup Required",
+          description: "Please complete classroom setup first",
+          variant: "destructive",
+        })
+        setLoading(false)
+        return
       }
 
       const assignment = assignments.find((a) => a.id === selectedAssignment)

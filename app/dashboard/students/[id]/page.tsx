@@ -48,11 +48,28 @@ export default function StudentProfilePage() {
       const {
         data: { user },
       } = await supabase.auth.getUser()
-      if (!user) throw new Error("Not authenticated")
+
+      if (!user) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to continue",
+          variant: "destructive",
+        })
+        setLoading(false)
+        return
+      }
 
       const { data: classroom } = await supabase.from("classrooms").select("id").eq("teacher_id", user.id).maybeSingle()
 
-      if (!classroom) throw new Error("No classroom found")
+      if (!classroom) {
+        toast({
+          title: "Setup Required",
+          description: "Please complete classroom setup first",
+          variant: "destructive",
+        })
+        setLoading(false)
+        return
+      }
 
       const { data, error } = await supabase
         .from("students")

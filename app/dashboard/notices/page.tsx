@@ -1,4 +1,5 @@
-"use client"
+export const dynamic = "force-dynamic"
+;("use client")
 
 import type React from "react"
 
@@ -43,12 +44,26 @@ export default function NoticesPage() {
       } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data: profile } = await supabase.from("profiles").select("classroom_id").eq("id", user.id).single()
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("classroom_id")
+        .eq("id", user.id)
+        .single()
+
+      if (profileError || !profile?.classroom_id) {
+        toast({
+          title: "Setup Required",
+          description: "Please complete classroom setup first",
+          variant: "destructive",
+        })
+        setLoading(false)
+        return
+      }
 
       const { data, error } = await supabase
         .from("notices")
         .select("*")
-        .eq("classroom_id", profile?.classroom_id)
+        .eq("classroom_id", profile.classroom_id)
         .order("date", { ascending: false })
 
       if (error) throw error
@@ -73,11 +88,24 @@ export default function NoticesPage() {
       } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data: profile } = await supabase.from("profiles").select("classroom_id").eq("id", user.id).single()
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("classroom_id")
+        .eq("id", user.id)
+        .single()
+
+      if (profileError || !profile?.classroom_id) {
+        toast({
+          title: "Setup Required",
+          description: "Please complete classroom setup first",
+          variant: "destructive",
+        })
+        return
+      }
 
       const { error } = await supabase.from("notices").insert({
         ...formData,
-        classroom_id: profile?.classroom_id,
+        classroom_id: profile.classroom_id,
       })
 
       if (error) throw error

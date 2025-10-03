@@ -37,7 +37,18 @@ export async function updateSession(request: NextRequest) {
   try {
     const {
       data: { user },
+      error: authError,
     } = await supabase.auth.getUser()
+
+    if (authError) {
+      console.error("[v0] Middleware auth error:", authError)
+      if (isProtectedRoute) {
+        const url = request.nextUrl.clone()
+        url.pathname = "/auth/login"
+        return NextResponse.redirect(url)
+      }
+      return supabaseResponse
+    }
 
     if (!user && isProtectedRoute) {
       const url = request.nextUrl.clone()
@@ -46,14 +57,22 @@ export async function updateSession(request: NextRequest) {
     }
 
     if (user && isAuthRoute && !request.nextUrl.pathname.includes("/callback")) {
-      const { data: classroom } = await supabase.from("classrooms").select("id").eq("teacher_id", user.id).maybeSingle()
+      const { data: classroom, error: classroomError } = await supabase
+        .from("classrooms")
+        .select("id")
+        .eq("teacher_id", user.id)
+        .maybeSingle()
+
+      if (classroomError) {
+        console.error("[v0] Middleware classroom query error:", classroomError)
+      }
 
       const url = request.nextUrl.clone()
       url.pathname = classroom ? "/dashboard" : "/setup"
       return NextResponse.redirect(url)
     }
   } catch (error) {
-    console.error("[v0] Middleware auth error:", error)
+    console.error("[v0] Middleware unexpected error:", error)
     // For protected routes, redirect to login on error
     if (isProtectedRoute) {
       const url = request.nextUrl.clone()

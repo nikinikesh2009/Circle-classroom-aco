@@ -1,4 +1,5 @@
-"use client"
+export const dynamic = "force-dynamic"
+;("use client")
 
 import type React from "react"
 
@@ -52,11 +53,28 @@ export default function NewStudentPage() {
       const {
         data: { user },
       } = await supabase.auth.getUser()
-      if (!user) throw new Error("Not authenticated")
+
+      if (!user) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to continue",
+          variant: "destructive",
+        })
+        setLoading(false)
+        return
+      }
 
       const { data: classroom } = await supabase.from("classrooms").select("id").eq("teacher_id", user.id).maybeSingle()
 
-      if (!classroom) throw new Error("No classroom found. Please complete setup first.")
+      if (!classroom) {
+        toast({
+          title: "Setup Required",
+          description: "Please complete classroom setup first",
+          variant: "destructive",
+        })
+        setLoading(false)
+        return
+      }
 
       const studentId = generateStudentId(formData.first_name, formData.last_name)
       const loginId = generateLoginId(formData.first_name, formData.last_name)

@@ -27,13 +27,21 @@ export default function StudentLoginPage() {
     try {
       const supabase = createClient()
 
-      const { data: classroom } = await supabase
+      const { data: classroom, error: classroomError } = await supabase
         .from("classrooms")
         .select("id")
         .eq("username", params.username)
         .maybeSingle()
 
-      if (!classroom) throw new Error("Classroom not found")
+      if (classroomError || !classroom) {
+        toast({
+          title: "Classroom Not Found",
+          description: "This classroom does not exist. Please check the URL.",
+          variant: "destructive",
+        })
+        setLoading(false)
+        return
+      }
 
       const { data: student, error } = await supabase
         .from("students")
@@ -43,7 +51,13 @@ export default function StudentLoginPage() {
         .maybeSingle()
 
       if (error || !student) {
-        throw new Error("Invalid login ID")
+        toast({
+          title: "Invalid Login ID",
+          description: "The login ID you entered is incorrect. Please try again.",
+          variant: "destructive",
+        })
+        setLoading(false)
+        return
       }
 
       localStorage.setItem(
@@ -64,7 +78,7 @@ export default function StudentLoginPage() {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "An unexpected error occurred",
         variant: "destructive",
       })
     } finally {

@@ -1,4 +1,5 @@
-"use client"
+export const dynamic = "force-dynamic"
+;("use client")
 
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
@@ -37,12 +38,26 @@ export default function TimetablePage() {
       } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data: profile } = await supabase.from("profiles").select("classroom_id").eq("id", user.id).single()
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("classroom_id")
+        .eq("id", user.id)
+        .single()
+
+      if (profileError || !profile?.classroom_id) {
+        toast({
+          title: "Setup Required",
+          description: "Please complete classroom setup first",
+          variant: "destructive",
+        })
+        setLoading(false)
+        return
+      }
 
       const { data, error } = await supabase
         .from("timetable")
         .select("*")
-        .eq("classroom_id", profile?.classroom_id)
+        .eq("classroom_id", profile.classroom_id)
         .order("start_time")
 
       if (error) throw error

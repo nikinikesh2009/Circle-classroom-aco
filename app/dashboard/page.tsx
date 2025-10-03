@@ -1,26 +1,72 @@
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
+import { redirect } from "next/navigation"
+import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, Calendar, FileText, TrendingUp, ClipboardCheck } from "lucide-react"
 import { StatCard } from "@/components/stat-card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
-export const dynamic = "force-dynamic"
-
-// Mock data for stable rendering
-const mockClassroom = {
-  name: "Demo Classroom",
-  grade_level: "5th Grade",
-  academic_year: "2024-2025",
-}
-
-const mockStats = {
-  totalStudents: 24,
-  presentToday: 22,
-  totalAssignments: 8,
-  attendanceRate: 92,
-}
-
 export default async function DashboardPage() {
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect("/auth/login")
+  }
+
+  const { data: classroom, error: classroomError } = await supabase
+    .from("classrooms")
+    .select("*")
+    .eq("teacher_id", user.id)
+    .maybeSingle()
+
+  if (classroomError || !classroom) {
+    redirect("/setup")
+  }
+
+  const { count: totalStudents, error: studentsError } = await supabase
+    .from("students")
+    .select("*", { count: "exact", head: true })
+    .eq("classroom_id", classroom.id)
+
+  const today = new Date().toISOString().split("T")[0]
+
+  const { data: students, error: studentsListError } = await supabase
+    .from("students")
+    .select("id")
+    .eq("classroom_id", classroom.id)
+
+  // Only query attendance if there are students
+  let presentToday = 0
+  if (students && students.length > 0 && !studentsListError) {
+    const { count, error: attendanceError } = await supabase
+      .from("attendance")
+      .select("*", { count: "exact", head: true })
+      .eq("date", today)
+      .eq("status", "present")
+      .in(
+        "student_id",
+        students.map((s) => s.id),
+      )
+
+    if (!attendanceError) {
+      presentToday = count || 0
+    }
+  }
+
+  const { count: totalAssignments, error: assignmentsError } = await supabase
+    .from("assignments")
+    .select("*", { count: "exact", head: true })
+    .eq("classroom_id", classroom.id)
+
+  const attendanceRate = totalStudents && presentToday ? Math.round((presentToday / totalStudents) * 100) : 0
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -39,26 +85,26 @@ export default async function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Students"
-          value={String(mockStats.totalStudents)}
-          change="+2 from last month"
+          value={String(totalStudents || 0)}
+          change="+0 from last month"
           icon={Users}
           index={0}
         />
         <StatCard
           title="Present Today"
-          value={String(mockStats.presentToday)}
-          change={`${mockStats.attendanceRate}% attendance rate`}
+          value={String(presentToday || 0)}
+          change={`${attendanceRate}% attendance rate`}
           icon={Calendar}
           index={1}
         />
         <StatCard
           title="Assignments"
-          value={String(mockStats.totalAssignments)}
-          change="+3 from last month"
+          value={String(totalAssignments || 0)}
+          change="+0 from last month"
           icon={FileText}
           index={2}
         />
-        <StatCard title="Class Average" value="87%" change="Across all assignments" icon={TrendingUp} index={3} />
+        <StatCard title="Class Average" value="--" change="Across all assignments" icon={TrendingUp} index={3} />
       </div>
 
       <Card className="overflow-hidden">
@@ -70,15 +116,15 @@ export default async function DashboardPage() {
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-2">
               <p className="text-sm font-medium text-muted-foreground">Classroom Name</p>
-              <p className="text-xl font-semibold">{mockClassroom.name}</p>
+              <p className="text-xl font-semibold">{classroom.name}</p>
             </div>
             <div className="space-y-2">
               <p className="text-sm font-medium text-muted-foreground">Grade Level</p>
-              <p className="text-xl font-semibold">{mockClassroom.grade_level}</p>
+              <p className="text-xl font-semibold">{classroom.grade_level}</p>
             </div>
             <div className="space-y-2">
               <p className="text-sm font-medium text-muted-foreground">Academic Year</p>
-              <p className="text-xl font-semibold">{mockClassroom.academic_year}</p>
+              <p className="text-xl font-semibold">{classroom.academic_year}</p>
             </div>
           </div>
         </CardContent>
@@ -97,7 +143,7 @@ export default async function DashboardPage() {
               </div>
               <div className="flex-1">
                 <p className="font-medium">Attendance taken for today</p>
-                <p className="text-sm text-muted-foreground">{mockStats.presentToday} students marked present</p>
+                <p className="text-sm text-muted-foreground">{presentToday || 0} students marked present</p>
               </div>
               <p className="text-sm text-muted-foreground">{new Date().toLocaleDateString()}</p>
             </div>

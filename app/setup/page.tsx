@@ -39,7 +39,13 @@ export default function SetupPage() {
       const result = await createClassroom(formData)
 
       if (result?.error) {
-        throw new Error(result.error)
+        toast({
+          title: "Setup Failed",
+          description: result.error,
+          variant: "destructive",
+        })
+        setLoading(false)
+        return
       }
 
       // If we reach here without redirect, show success and manually redirect
@@ -51,7 +57,7 @@ export default function SetupPage() {
       setLoading(false)
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "An unexpected error occurred during setup",
         variant: "destructive",
       })
     }
