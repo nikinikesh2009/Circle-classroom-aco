@@ -64,7 +64,7 @@ export default function NewAssignmentPage() {
       } = await supabase.auth.getUser()
       if (!user) throw new Error("Not authenticated")
 
-      const { data: classroom } = await supabase.from("classrooms").select("id").eq("teacher_id", user.id).single()
+      const { data: classroom } = await supabase.from("classrooms").select("id").eq("teacher_id", user.id).maybeSingle()
 
       if (!classroom) throw new Error("No classroom found. Please complete setup first.")
 

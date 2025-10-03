@@ -45,18 +45,26 @@ export default function GradesPage() {
       } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data: profile } = await supabase.from("profiles").select("classroom_id").eq("id", user.id).single()
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("classroom_id")
+        .eq("id", user.id)
+        .single()
+
+      if (profileError || !profile?.classroom_id) {
+        throw new Error("Classroom not found. Please complete setup first.")
+      }
 
       const [assignmentsRes, studentsRes] = await Promise.all([
         supabase
           .from("assignments")
           .select("id, title, subject, total_marks")
-          .eq("classroom_id", profile?.classroom_id)
+          .eq("classroom_id", profile.classroom_id)
           .order("created_at", { ascending: false }),
         supabase
           .from("students")
           .select("id, first_name, last_name")
-          .eq("classroom_id", profile?.classroom_id)
+          .eq("classroom_id", profile.classroom_id)
           .order("first_name"),
       ])
 
@@ -128,7 +136,15 @@ export default function GradesPage() {
       } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data: profile } = await supabase.from("profiles").select("classroom_id").eq("id", user.id).single()
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("classroom_id")
+        .eq("id", user.id)
+        .single()
+
+      if (profileError || !profile?.classroom_id) {
+        throw new Error("Classroom not found. Please complete setup first.")
+      }
 
       const assignment = assignments.find((a) => a.id === selectedAssignment)
 
@@ -137,7 +153,7 @@ export default function GradesPage() {
         const percentage = (marks / (assignment?.total_marks || 100)) * 100
 
         return {
-          classroom_id: profile?.classroom_id,
+          classroom_id: profile.classroom_id,
           assignment_id: selectedAssignment,
           student_id,
           student_name: `${student?.first_name} ${student?.last_name}`,

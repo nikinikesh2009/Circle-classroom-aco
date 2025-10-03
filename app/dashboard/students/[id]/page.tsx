@@ -26,6 +26,7 @@ interface Student {
   medical_notes: string
   address: string
   photo_url: string | null
+  classroom_id: string
 }
 
 export default function StudentProfilePage() {
@@ -43,9 +44,29 @@ export default function StudentProfilePage() {
   const loadStudent = async () => {
     try {
       const supabase = createClient()
-      const { data, error } = await supabase.from("students").select("*").eq("id", params.id).single()
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) throw new Error("Not authenticated")
+
+      const { data: classroom } = await supabase.from("classrooms").select("id").eq("teacher_id", user.id).maybeSingle()
+
+      if (!classroom) throw new Error("No classroom found")
+
+      const { data, error } = await supabase
+        .from("students")
+        .select("*")
+        .eq("id", params.id)
+        .eq("classroom_id", classroom.id)
+        .maybeSingle()
 
       if (error) throw error
+      if (!data) {
+        setStudent(null)
+        setLoading(false)
+        return
+      }
       setStudent(data)
 
       const qrUrl = await QRCode.toDataURL(data.login_id)

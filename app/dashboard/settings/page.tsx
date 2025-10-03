@@ -1,6 +1,8 @@
 "use client"
 
 import type React from "react"
+import { createCustomerPortalSession } from "@/app/actions/stripe"
+import { CreditCard } from "lucide-react"
 
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
@@ -25,6 +27,7 @@ export default function SettingsPage() {
   const [classroom, setClassroom] = useState<Classroom | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [loadingPortal, setLoadingPortal] = useState(false)
 
   useEffect(() => {
     loadSettings()
@@ -38,9 +41,13 @@ export default function SettingsPage() {
       } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data: profile } = await supabase.from("profiles").select("classroom_id").eq("id", user.id).single()
+      const { data: profile } = await supabase.from("profiles").select("classroom_id").eq("id", user.id).maybeSingle()
 
-      const { data, error } = await supabase.from("classrooms").select("*").eq("id", profile?.classroom_id).single()
+      const { data, error } = await supabase
+        .from("classrooms")
+        .select("*")
+        .eq("id", profile?.classroom_id)
+        .maybeSingle()
 
       if (error) throw error
       setClassroom(data)
@@ -86,6 +93,21 @@ export default function SettingsPage() {
       })
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleManageSubscription = async () => {
+    setLoadingPortal(true)
+    try {
+      const { url } = await createCustomerPortalSession()
+      window.location.href = url
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      })
+      setLoadingPortal(false)
     }
   }
 
@@ -191,6 +213,26 @@ export default function SettingsPage() {
                 {saving ? "Saving..." : "Save Changes"}
               </Button>
             </form>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Subscription
+            </CardTitle>
+            <CardDescription>Manage your billing and subscription settings</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Access the Stripe Customer Portal to manage your subscription, update payment methods, view invoices, and
+              more.
+            </p>
+            <Button onClick={handleManageSubscription} disabled={loadingPortal} variant="outline">
+              <CreditCard className="mr-2 h-4 w-4" />
+              {loadingPortal ? "Loading..." : "Manage Subscription"}
+            </Button>
           </CardContent>
         </Card>
       </div>

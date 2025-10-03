@@ -31,7 +31,7 @@ export default function StudentLoginPage() {
         .from("classrooms")
         .select("id")
         .eq("username", params.username)
-        .single()
+        .maybeSingle()
 
       if (!classroom) throw new Error("Classroom not found")
 
@@ -40,7 +40,7 @@ export default function StudentLoginPage() {
         .select("id, first_name, last_name")
         .eq("classroom_id", classroom.id)
         .eq("login_id", loginId.toUpperCase())
-        .single()
+        .maybeSingle()
 
       if (error || !student) {
         throw new Error("Invalid login ID")

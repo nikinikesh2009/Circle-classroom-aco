@@ -56,6 +56,8 @@ export default function PublicPortalPage() {
       if (classroomError) throw classroomError
       setClassroom(classroomData)
 
+      const currentDay = new Date().toLocaleDateString("en-US", { weekday: "long" })
+
       const [noticesRes, timetableRes] = await Promise.all([
         supabase
           .from("notices")
@@ -67,12 +69,23 @@ export default function PublicPortalPage() {
           .from("timetable")
           .select("*")
           .eq("classroom_id", classroomData.id)
-          .eq("day", new Date().toLocaleDateString("en-US", { weekday: "long" }))
+          .eq("day_of_week", currentDay)
           .order("start_time"),
       ])
 
       setNotices(noticesRes.data || [])
-      setTodaySchedule(timetableRes.data || [])
+
+      const mappedSchedule =
+        timetableRes.data?.map((entry) => ({
+          id: entry.id,
+          day: entry.day_of_week,
+          start_time: entry.start_time,
+          end_time: entry.end_time,
+          subject: entry.subject,
+          teacher: entry.teacher_name,
+        })) || []
+
+      setTodaySchedule(mappedSchedule)
     } catch (error: any) {
       console.error("[v0] Error loading portal:", error)
     } finally {

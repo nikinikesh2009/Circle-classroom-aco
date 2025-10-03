@@ -100,8 +100,12 @@ export default function EditTimetablePage() {
       await supabase.from("timetable").delete().eq("classroom_id", profile?.classroom_id)
 
       const records = entries.map((entry) => ({
-        ...entry,
         classroom_id: profile?.classroom_id,
+        day_of_week: entry.day,
+        start_time: entry.start_time,
+        end_time: entry.end_time,
+        subject: entry.subject,
+        teacher_name: entry.teacher,
       }))
 
       const { error } = await supabase.from("timetable").insert(records)

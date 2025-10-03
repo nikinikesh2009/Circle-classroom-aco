@@ -1,8 +1,39 @@
 import { generateText } from "ai"
+import { z } from "zod"
+import { createClient } from "@/lib/supabase/server"
+
+const requestSchema = z.object({
+  grades: z
+    .array(
+      z.object({
+        student_name: z.string(),
+        marks_obtained: z.number().min(0),
+      }),
+    )
+    .min(1, "At least one grade is required"),
+  assignmentTitle: z.string().min(1, "Assignment title is required"),
+  totalMarks: z.number().min(1, "Total marks must be greater than 0"),
+})
 
 export async function POST(req: Request) {
   try {
-    const { grades, assignmentTitle, totalMarks } = await req.json()
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const body = await req.json()
+    const validation = requestSchema.safeParse(body)
+
+    if (!validation.success) {
+      return Response.json({ error: "Invalid request", details: validation.error.errors }, { status: 400 })
+    }
+
+    const { grades, assignmentTitle, totalMarks } = validation.data
 
     const prompt = `Analyze these student grades and provide insights:
 
@@ -10,7 +41,7 @@ Assignment: ${assignmentTitle}
 Total Marks: ${totalMarks}
 
 Grades:
-${grades.map((g: any) => `${g.student_name}: ${g.marks_obtained}/${totalMarks}`).join("\n")}
+${grades.map((g) => `${g.student_name}: ${g.marks_obtained}/${totalMarks}`).join("\n")}
 
 Provide:
 1. Class average and median

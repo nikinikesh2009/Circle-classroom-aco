@@ -39,12 +39,20 @@ export default function AttendancePage() {
       } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data: profile } = await supabase.from("profiles").select("classroom_id").eq("id", user.id).single()
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("classroom_id")
+        .eq("id", user.id)
+        .single()
+
+      if (profileError || !profile?.classroom_id) {
+        throw new Error("Classroom not found. Please complete setup first.")
+      }
 
       const { data, error } = await supabase
         .from("students")
         .select("id, first_name, last_name")
-        .eq("classroom_id", profile?.classroom_id)
+        .eq("classroom_id", profile.classroom_id)
         .order("first_name")
 
       if (error) throw error
@@ -68,12 +76,20 @@ export default function AttendancePage() {
       } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data: profile } = await supabase.from("profiles").select("classroom_id").eq("id", user.id).single()
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("classroom_id")
+        .eq("id", user.id)
+        .single()
+
+      if (profileError || !profile?.classroom_id) {
+        return
+      }
 
       const { data, error } = await supabase
         .from("attendance")
         .select("student_id, status")
-        .eq("classroom_id", profile?.classroom_id)
+        .eq("classroom_id", profile.classroom_id)
         .eq("date", selectedDate)
 
       if (error) throw error
@@ -104,12 +120,20 @@ export default function AttendancePage() {
       } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data: profile } = await supabase.from("profiles").select("classroom_id").eq("id", user.id).single()
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("classroom_id")
+        .eq("id", user.id)
+        .single()
 
-      await supabase.from("attendance").delete().eq("classroom_id", profile?.classroom_id).eq("date", selectedDate)
+      if (profileError || !profile?.classroom_id) {
+        throw new Error("Classroom not found. Please complete setup first.")
+      }
+
+      await supabase.from("attendance").delete().eq("classroom_id", profile.classroom_id).eq("date", selectedDate)
 
       const records = Object.entries(attendance).map(([student_id, status]) => ({
-        classroom_id: profile?.classroom_id,
+        classroom_id: profile.classroom_id,
         student_id,
         date: selectedDate,
         status,

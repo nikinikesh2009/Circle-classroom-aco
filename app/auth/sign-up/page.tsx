@@ -53,8 +53,7 @@ export default function SignUpPage() {
             password,
             options: {
               data: { full_name: fullName },
-              emailRedirectTo:
-                process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/dashboard`,
+              emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/setup`,
             },
           }
         : {
@@ -71,7 +70,11 @@ export default function SignUpPage() {
       setError(error.message)
       setLoading(false)
     } else {
-      router.push("/auth/sign-up-success")
+      if (signupMethod === "email") {
+        router.push("/auth/verify-email")
+      } else {
+        router.push("/setup")
+      }
     }
   }
 

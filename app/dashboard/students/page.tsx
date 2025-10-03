@@ -13,17 +13,21 @@ export default async function StudentsPage() {
     redirect("/auth/login")
   }
 
-  const { data: classroom } = await supabase.from("classrooms").select("*").eq("teacher_id", user.id).single()
+  const { data: classroom } = await supabase.from("classrooms").select("*").eq("teacher_id", user.id).maybeSingle()
+
+  if (!classroom) {
+    redirect("/setup")
+  }
 
   const { data: students } = await supabase
     .from("students")
     .select("*")
-    .eq("classroom_id", classroom?.id)
+    .eq("classroom_id", classroom.id)
     .order("last_name", { ascending: true })
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <StudentsRoster students={students || []} classroomId={classroom?.id || ""} />
+      <StudentsRoster students={students || []} classroomId={classroom.id} />
     </div>
   )
 }

@@ -37,6 +37,11 @@ export default function NewStudentPage() {
     return `${firstName.slice(0, 3)}${lastName.slice(0, 3)}${random}`.toUpperCase()
   }
 
+  const generateStudentId = (firstName: string, lastName: string) => {
+    const random = Math.floor(100000 + Math.random() * 900000)
+    return `${firstName.slice(0, 2)}${lastName.slice(0, 2)}${random}`.toUpperCase()
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -49,13 +54,22 @@ export default function NewStudentPage() {
       } = await supabase.auth.getUser()
       if (!user) throw new Error("Not authenticated")
 
-      const { data: classroom } = await supabase.from("classrooms").select("id").eq("teacher_id", user.id).single()
+      const { data: classroom } = await supabase.from("classrooms").select("id").eq("teacher_id", user.id).maybeSingle()
 
       if (!classroom) throw new Error("No classroom found. Please complete setup first.")
 
+      const studentId = generateStudentId(formData.first_name, formData.last_name)
       const loginId = generateLoginId(formData.first_name, formData.last_name)
 
+      console.log("[v0] Attempting to insert student with data:", {
+        student_id: studentId,
+        login_id: loginId,
+        classroom_id: classroom.id,
+        teacher_id: user.id,
+      })
+
       const { error } = await supabase.from("students").insert({
+        student_id: studentId,
         first_name: formData.first_name,
         last_name: formData.last_name,
         date_of_birth: formData.date_of_birth,
@@ -72,15 +86,21 @@ export default function NewStudentPage() {
         login_id: loginId,
       })
 
-      if (error) throw error
+      if (error) {
+        console.log("[v0] Error inserting student:", error)
+        throw error
+      }
+
+      console.log("[v0] Student inserted successfully")
 
       toast({
         title: "Success",
-        description: `Student registered with Login ID: ${loginId}`,
+        description: `Student registered with Student ID: ${studentId} and Login ID: ${loginId}`,
       })
 
       router.push("/dashboard/students")
     } catch (error: any) {
+      console.log("[v0] Error in handleSubmit:", error)
       toast({
         title: "Error",
         description: error.message,

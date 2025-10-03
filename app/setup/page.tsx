@@ -3,8 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
+import { createClassroom } from "./actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,7 +12,6 @@ import { School, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 export default function SetupPage() {
-  const router = useRouter()
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
@@ -38,66 +36,24 @@ export default function SetupPage() {
     setLoading(true)
 
     try {
-      const supabase = createClient()
+      const result = await createClassroom(formData)
 
-      // Get current user
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) throw new Error("Not authenticated")
-
-      // Check if username is available
-      const { data: existingClassroom } = await supabase
-        .from("classrooms")
-        .select("username")
-        .eq("username", formData.username)
-        .single()
-
-      if (existingClassroom) {
-        throw new Error("Username already taken. Please choose another.")
+      if (result?.error) {
+        throw new Error(result.error)
       }
 
-      // Create classroom
-      const { data: classroom, error: classroomError } = await supabase
-        .from("classrooms")
-        .insert({
-          name: formData.classroomName,
-          username: formData.username,
-          grade_level: formData.gradeLevel,
-          academic_year: formData.academicYear,
-          teacher_id: user.id,
-          teacher_name: formData.teacherName,
-          teacher_email: formData.teacherEmail,
-          teacher_phone: formData.teacherPhone,
-        })
-        .select()
-        .single()
-
-      if (classroomError) throw classroomError
-
-      // Update profile with classroom_id
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({ classroom_id: classroom.id })
-        .eq("id", user.id)
-
-      if (profileError) throw profileError
-
+      // If we reach here without redirect, show success and manually redirect
       toast({
         title: "Success!",
         description: "Your classroom has been created.",
       })
-
-      router.push("/dashboard")
-      router.refresh()
     } catch (error: any) {
+      setLoading(false)
       toast({
         title: "Error",
         description: error.message,
         variant: "destructive",
       })
-    } finally {
-      setLoading(false)
     }
   }
 

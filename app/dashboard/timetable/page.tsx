@@ -46,7 +46,18 @@ export default function TimetablePage() {
         .order("start_time")
 
       if (error) throw error
-      setTimetable(data || [])
+
+      const mappedData =
+        data?.map((entry) => ({
+          id: entry.id,
+          day: entry.day_of_week,
+          start_time: entry.start_time,
+          end_time: entry.end_time,
+          subject: entry.subject,
+          teacher: entry.teacher_name,
+        })) || []
+
+      setTimetable(mappedData)
     } catch (error: any) {
       toast({
         title: "Error",

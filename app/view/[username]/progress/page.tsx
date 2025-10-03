@@ -55,7 +55,8 @@ export default function StudentProgressPage() {
         .select(`
           marks_obtained,
           percentage,
-          assignments (
+          assignment_id,
+          assignments!inner (
             title,
             subject,
             total_marks
