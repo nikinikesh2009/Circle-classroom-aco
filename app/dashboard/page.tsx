@@ -31,12 +31,20 @@ export default async function DashboardPage() {
   const today = new Date().toISOString().split("T")[0]
   const { data: students } = await supabase.from("students").select("id").eq("classroom_id", classroom.id)
 
-  const { count: presentToday } = await supabase
-    .from("attendance")
-    .select("*", { count: "exact", head: true })
-    .eq("date", today)
-    .eq("status", "present")
-    .in("student_id", students?.map((s) => s.id) || [])
+  // Only query attendance if there are students
+  let presentToday = 0
+  if (students && students.length > 0) {
+    const { count } = await supabase
+      .from("attendance")
+      .select("*", { count: "exact", head: true })
+      .eq("date", today)
+      .eq("status", "present")
+      .in(
+        "student_id",
+        students.map((s) => s.id),
+      )
+    presentToday = count || 0
+  }
 
   const { count: totalAssignments } = await supabase
     .from("assignments")
