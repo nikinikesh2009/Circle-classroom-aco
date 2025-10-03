@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 
+export const dynamic = "force-dynamic"
+
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   try {
     const supabase = await createClient()

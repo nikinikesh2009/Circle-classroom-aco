@@ -1,5 +1,7 @@
 import { StudentsRoster } from "@/components/students-roster"
 
+export const dynamic = "force-dynamic"
+
 // Mock student data
 const mockStudents = [
   {

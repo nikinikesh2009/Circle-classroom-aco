@@ -12,8 +12,6 @@ interface StatCardProps {
 }
 
 export function StatCard({ title, value, change, icon: Icon, index }: StatCardProps) {
-  const isPositive = change.startsWith("+")
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -34,11 +32,9 @@ export function StatCard({ title, value, change, icon: Icon, index }: StatCardPr
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: index * 0.1 + 0.2 }}
-            className={`text-xs ${
-              isPositive ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-            }`}
+            className="text-xs text-muted-foreground"
           >
-            {change} from last month
+            {change}
           </motion.p>
         </CardContent>
       </Card>

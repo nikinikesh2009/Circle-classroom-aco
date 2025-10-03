@@ -4,6 +4,8 @@ import { StatCard } from "@/components/stat-card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
+export const dynamic = "force-dynamic"
+
 // Mock data for stable rendering
 const mockClassroom = {
   name: "Demo Classroom",
