@@ -26,6 +26,7 @@ export default function AttendancePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     loadStudents()
@@ -34,11 +35,16 @@ export default function AttendancePage() {
 
   const loadStudents = async () => {
     try {
+      setError(null)
       const supabase = createClient()
       const {
         data: { user },
       } = await supabase.auth.getUser()
-      if (!user) return
+
+      if (!user) {
+        setError("Please log in to continue")
+        return
+      }
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
@@ -46,19 +52,30 @@ export default function AttendancePage() {
         .eq("id", user.id)
         .single()
 
-      if (profileError || !profile?.classroom_id) {
+      if (profileError) {
+        console.error("[v0] Profile error:", profileError)
+        throw new Error("Unable to load your profile")
+      }
+
+      if (!profile?.classroom_id) {
         throw new Error("Classroom not found. Please complete setup first.")
       }
 
-      const { data, error } = await supabase
+      const { data, error: studentsError } = await supabase
         .from("students")
         .select("id, first_name, last_name, photo_url")
         .eq("classroom_id", profile.classroom_id)
         .order("first_name")
 
-      if (error) throw error
+      if (studentsError) {
+        console.error("[v0] Students error:", studentsError)
+        throw new Error("Unable to load students")
+      }
+
       setStudents(data || [])
     } catch (error: any) {
+      console.error("[v0] Load students error:", error)
+      setError(error.message || "Failed to load students")
       toast({
         title: "Error",
         description: error.message,
@@ -75,6 +92,7 @@ export default function AttendancePage() {
       const {
         data: { user },
       } = await supabase.auth.getUser()
+
       if (!user) return
 
       const { data: profile, error: profileError } = await supabase
@@ -84,17 +102,21 @@ export default function AttendancePage() {
         .single()
 
       if (profileError || !profile?.classroom_id) {
+        console.error("[v0] Profile error in loadAttendance:", profileError)
         return
       }
 
       const dateStr = format(selectedDate, "yyyy-MM-dd")
-      const { data, error } = await supabase
+      const { data, error: attendanceError } = await supabase
         .from("attendance")
         .select("student_id, status")
         .eq("classroom_id", profile.classroom_id)
         .eq("date", dateStr)
 
-      if (error) throw error
+      if (attendanceError) {
+        console.error("[v0] Attendance error:", attendanceError)
+        return
+      }
 
       const attendanceMap: Record<string, "present" | "absent"> = {}
       data?.forEach((record) => {
@@ -120,7 +142,10 @@ export default function AttendancePage() {
       const {
         data: { user },
       } = await supabase.auth.getUser()
-      if (!user) return
+
+      if (!user) {
+        throw new Error("Please log in to continue")
+      }
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
@@ -128,12 +153,26 @@ export default function AttendancePage() {
         .eq("id", user.id)
         .single()
 
-      if (profileError || !profile?.classroom_id) {
+      if (profileError) {
+        console.error("[v0] Profile error:", profileError)
+        throw new Error("Unable to load your profile")
+      }
+
+      if (!profile?.classroom_id) {
         throw new Error("Classroom not found. Please complete setup first.")
       }
 
       const dateStr = format(selectedDate, "yyyy-MM-dd")
-      await supabase.from("attendance").delete().eq("classroom_id", profile.classroom_id).eq("date", dateStr)
+
+      const { error: deleteError } = await supabase
+        .from("attendance")
+        .delete()
+        .eq("classroom_id", profile.classroom_id)
+        .eq("date", dateStr)
+
+      if (deleteError) {
+        console.error("[v0] Delete error:", deleteError)
+      }
 
       const records = Object.entries(attendance).map(([student_id, status]) => ({
         classroom_id: profile.classroom_id,
@@ -142,18 +181,24 @@ export default function AttendancePage() {
         status,
       }))
 
-      const { error } = await supabase.from("attendance").insert(records)
+      if (records.length > 0) {
+        const { error: insertError } = await supabase.from("attendance").insert(records)
 
-      if (error) throw error
+        if (insertError) {
+          console.error("[v0] Insert error:", insertError)
+          throw new Error("Failed to save attendance")
+        }
+      }
 
       toast({
         title: "Success",
         description: "Attendance saved successfully",
       })
     } catch (error: any) {
+      console.error("[v0] Save attendance error:", error)
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to save attendance",
         variant: "destructive",
       })
     } finally {
@@ -165,11 +210,25 @@ export default function AttendancePage() {
   const absentCount = Object.values(attendance).filter((s) => s === "absent").length
   const attendanceRate = students.length > 0 ? Math.round((presentCount / students.length) * 100) : 0
 
+  if (error) {
+    return (
+      <div className="flex h-[400px] items-center justify-center">
+        <div className="text-center">
+          <h2 className="mb-2 text-xl font-semibold text-destructive">Error</h2>
+          <p className="text-muted-foreground">{error}</p>
+          <Button onClick={() => window.location.reload()} className="mt-4">
+            Retry
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   if (loading) {
     return (
       <div className="flex h-[400px] items-center justify-center">
         <div className="text-center">
-          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <div className="mb-4 h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
           <p className="text-muted-foreground">Loading students...</p>
         </div>
       </div>
